@@ -15,20 +15,27 @@
 #define WDT_TIMEOUT 32400000 // 9 hours
 #define TINY_GSM_RX_BUFFER 1024  // Set RX buffer to 1Kb
 
-#define MOTFWD  15 
-#define MOTREV  2
-#define ENCODERPINA 4; 
-#define ENCODERPINB 16;
-#define TENSION_SWITCH 17; 
+#define ENCODERPINA 4 
+#define ENCODERPINB 16
+#define TENSION_SWITCH 17
 #define WINDUP_SWITCH 5
-#define MODEM_RST 0
+#define MODEM_RST 2
 #define TX 18
 #define RX 19
+#define CS 15
+#define CLK 14
+#define MISO 12
+#define MOSI 13
+#define MOTFWD 27 
+#define MOTREV 26
+#define SDA 25
+#define SCL 33
 
 #include <SPI.h>
 #include <Wire.h>
+#include <SoftwareWire.h>  
+#include <RtcDS1307.h>
 #include <esp_task_wdt.h>
-#include <Wire.h>
 #include <TinyGsmClient.h>
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
@@ -39,14 +46,16 @@ TinyGsm modem(debugger);
 #else
 TinyGsm modem(SerialAT);
 #endif
+
+SoftwareWire myWire(SDA, SCL);
+RtcDS1307<SoftwareWire> Rtc(myWire);
 TinyGsmClient client(modem);
 
 
 bool windup_reading = 0;
-int tension_reading = 0;
+bool tension_reading = 0;
 int last_encoded = 0; // Here updated value of encoder store.
 long encoder_value = 0; // Raw encoder value
-long starting_encoder_value = 0;
 unsigned long int reset_time = millis();
 float diameter = 10
 float circumference = 3.14159 * diameter 
@@ -65,7 +74,7 @@ void windUp()  // This function needs to be called only once in the void setup b
   } while(windup_reading == 1); 
   digitalWrite(MOTREV, LOW);
   distance = 0;
-  starting_encoder_value = encoder_value;
+  encoder_value = 0;
 }
 
 void IRAM_ATTR updateEncoder(){
@@ -80,6 +89,35 @@ void IRAM_ATTR updateEncoder(){
 
   last_encoded = encoded; //store this value for next time
 
+}
+
+void writeData(float distance, const RtcDateTime& dt){
+  File dataFile;
+  dataFile = SD.open("datalog.txt", FILE_WRITE);
+  if (dataFile) {
+  char datestring[26];
+  snprintf_P(datestring,  
+      countof(datestring),
+      PSTR("%04u-%02u-%02uT%02u:%02u:%02u+00:00"),
+      dt.Year(),
+      dt.Month(),
+      dt.Day(),
+      dt.Hour(),
+      dt.Minute(),
+      dt.Second());
+  dataFile.print(datestring);
+  dataFile.print(" ");
+  dataFile.print("distance : ");
+  dataFile.println(distance);
+  dataFile.close();
+  // print to the serial port too:
+  //Serial.println(dataString);
+  }
+//  else {
+//    Serial.println("error opening datalog.txt");
+//  }
+  delay(2000);
+  //reset();
 }
 
 void send_data(float Reading) {
@@ -136,14 +174,15 @@ void setup() {
   SerialMon.println("Initializing modem...");
   digitalWrite(MODEM_RST, HIGH);
   modem.restart(); 
-  #if TINY_GSM_USE_GPRS
-  // Unlock your SIM card with a PIN if needed
-  if (GSM_PIN && modem.getSimStatus() != 3) { modem.simUnlock(GSM_PIN); }
+  if (GSM_PIN && modem.getSimStatus() != 3) { modem.simUnlock(GSM_PIN); } // Unlock your SIM card with a PIN if needed
   #endif
   
   attachInterrupt(ENCODERPINA, updateEncoder, CHANGE); 
   attachInterrupt(ENCODERPINB, updateEncoder, CHANGE);
-  
+
+  if (!SD.begin(CS)) {
+    send_data(-100.69);
+  }
   windUp();  // This will make sure that the bob is at the top before starting readings
 }
 
@@ -158,7 +197,7 @@ void loop() {
       tension_reading = digitalRead(TENSION_SWITCH);
     }
     digitalWrite(MOTREV, LOW); 
-    distance -= (encoder_value - starting_encoder_value) * circumference;
+    distance = encoder_value * circumference;
     Serial.print("Distance = ");
     Serial.println((int)distance);
 
@@ -169,10 +208,12 @@ void loop() {
       tension_reading = digitalRead(TENSION_SWITCH);
     }
     digitalWrite(MOTFWD, LOW); 
-    distance += (encoder_value - starting_encoder_value) * circumference;
+    distance = encoder_value * circumference;
     Serial.print("Distance = ");
     Serial.println((int)distance);
     delay(500);
+    
+    writeData(distance,RtcDateTime(__DATE__, __TIME__));
     
     modem.gprsConnect(apn);
     modem.waitForNetwork(600000L);
