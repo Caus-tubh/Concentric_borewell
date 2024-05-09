@@ -15,21 +15,21 @@
 #define WDT_TIMEOUT 32400000 // 9 hours
 #define TINY_GSM_RX_BUFFER 1024  // Set RX buffer to 1Kb
 
-#define ENCODERPINA 4 
-#define ENCODERPINB 16
-#define TENSION_SWITCH 17
-#define WINDUP_SWITCH 5
-#define MODEM_RST 2
-#define TX 18
-#define RX 19
+#define ENCODERPINA 26
+#define ENCODERPINB 27
+#define TENSION_SWITCH 34
+#define WINDUP_SWITCH 35
+#define MODEM_RST 5
+#define TX 17
+#define RX 16
 #define CS 15
 #define CLK 14
 #define MISO 12
 #define MOSI 13
-#define MOTFWD 27 
-#define MOTREV 26
-#define SDA 25
-#define SCL 33
+#define MOTFWD 2
+#define MOTREV 4
+#define SDA 21
+#define SCL 22
 
 #include <SPI.h>
 #include <Wire.h>
