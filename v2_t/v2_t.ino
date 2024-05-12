@@ -16,19 +16,19 @@
 #define WDT_TIMEOUT 32400000 // 9 hours
 #define TINY_GSM_RX_BUFFER 1024  // Set RX buffer to 1Kb
 
-#define ENCODERPINA 26
-#define ENCODERPINB 27
-#define TENSION_SWITCH 34
+#define ENCODERPINA 4
+#define ENCODERPINB 2
+#define TENSION_SWITCH 18
 #define WINDUP_SWITCH 35
 #define MODEM_RST 5
 #define TX 17
 #define RX 16
 #define CS 15
 #define CLK 14
-#define MISO 12
-#define MOSI 13
-#define MOTFWD 2
-#define MOTREV 4
+#define MISO 27
+#define MOSI 26
+#define MOTFWD 13
+#define MOTREV 12
 #define SDA 21
 #define SCL 22
 
@@ -52,6 +52,7 @@ TinyGsm modem(SerialAT);
 //SoftwareWire myWire(SDA, SCL);
 RtcDS1307<TwoWire> Rtc(Wire);
 TinyGsmClient client(modem);
+SPIClass SPISD(VSPI);
 
 
 bool windup_reading = 0;
@@ -184,7 +185,8 @@ void setup() {
   attachInterrupt(ENCODERPINA, updateEncoder, CHANGE); 
   attachInterrupt(ENCODERPINB, updateEncoder, CHANGE);
 
-  if (!SD.begin(CS)) {
+  SPISD.begin(CLK, MISO, MOSI);
+  if (!SD.begin(CS, SPISD)) {
     SerialMon.println("SD card module not found");
     send_data(-100.69);
   }
