@@ -11,22 +11,22 @@
 #define PORT 80
 #define APN "cmnet"
 #define SerialMon Serial
-#define SerialAT Serial2
+#define SerialAT Serial1
 #define TINY_GSM_MODEM_SIM800
 #define WDT_TIMEOUT 32400000 // 9 hours
 #define TINY_GSM_RX_BUFFER 1024  // Set RX buffer to 1Kb
 
-#define ENCODERPINA 26
-#define ENCODERPINB 27
-#define TENSION_SWITCH 34
-#define WINDUP_SWITCH 35
-#define MODEM_RST 5
-#define TX 17
-#define RX 16
-#define CS 15
-#define CLK 14
-#define MISO 12
-#define MOSI 13
+#define ENCODERPINA 16
+#define ENCODERPINB 17
+#define TENSION_SWITCH 32
+#define WINDUP_SWITCH 33
+#define MODEM_RST 25
+#define TX 27
+#define RX 26
+#define CS 5
+#define CLK 18
+#define MISO 19
+#define MOSI 23
 #define MOTFWD 2
 #define MOTREV 4
 #define SDA 21
@@ -59,22 +59,25 @@ bool tension_reading = 0;
 int last_encoded = 0; // Here updated value of encoder store.
 long encoder_value = 0; // Raw encoder value
 unsigned long int reset_time = millis();
-float diameter = 10;
+float diameter = 9.74;
 float circumference = 3.14159 * diameter; 
 bool res = 0;
 float distance = 0;
 long duration;
 bool sent_status = 0;
-
+ 
 
 void windUp()  // This function needs to be called only once in the void setup because it has to run only when the system is powered
 {
   do {
-    digitalWrite(MOTFWD, LOW);  
-    digitalWrite(MOTREV, HIGH);
+    digitalWrite(MOTFWD, HIGH);  
+    digitalWrite(MOTREV, LOW);
     windup_reading = digitalRead(WINDUP_SWITCH);
+    SerialMon.println("windup");
+    SerialMon.print("windup_reading : ");
+    SerialMon.println(windup_reading);
   } while(windup_reading == 1); 
-  digitalWrite(MOTREV, LOW);
+  digitalWrite(MOTFWD, LOW);
   distance = 0;
   encoder_value = 0;
 }
@@ -201,9 +204,12 @@ void loop() {
       digitalWrite(MOTREV, HIGH); 
       delay(200);   
       tension_reading = digitalRead(TENSION_SWITCH);
+      SerialMon.println("falling");
+      SerialMon.println("tension_reading : ");
+      SerialMon.print(tension_reading);
     }
     digitalWrite(MOTREV, LOW); 
-    distance = encoder_value * circumference;
+    distance = (encoder_value * circumference)/28;
     Serial.print("Distance = ");
     Serial.println((int)distance);
 
@@ -212,9 +218,12 @@ void loop() {
       digitalWrite(MOTREV, LOW); 
       delay(200);   
       tension_reading = digitalRead(TENSION_SWITCH);
+      SerialMon.println("rising");
+      SerialMon.println("tension_reading : ");
+      SerialMon.print(tension_reading);
     }
     digitalWrite(MOTFWD, LOW); 
-    distance = encoder_value * circumference;
+    distance = (encoder_value * circumference)/28;
     Serial.print("Distance = ");
     Serial.println((int)distance);
     delay(500);
